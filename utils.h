@@ -234,6 +234,13 @@ int dir_read(dir_read_t *dir_read, char *dirname) {
 void dir_read_clean(dir_read_t *dir_read) {
     if (dir_read != NULL) {
         if (dir_read->names != NULL) {
+            for (int i = 0; i < dir_read->size; i++)
+            {
+                if (dir_read->names[i] != NULL)
+                {
+                    free(dir_read->names[i]);
+                }
+            }
             free(dir_read->names);
         }
 #ifdef _DIRENT_HAVE_D_TYPE
