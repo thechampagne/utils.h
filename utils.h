@@ -33,7 +33,9 @@ extern "C" {
 
 typedef struct {
     char **names;
+#ifdef _DIRENT_HAVE_D_TYPE
     unsigned char *types;
+#endif
     int size;
 } dir_read_t;
 
@@ -185,10 +187,12 @@ int dir_read(dir_read_t *dir_read, char *dirname) {
     if (names == NULL) {
         return -1;
     }
+#ifdef _DIRENT_HAVE_D_TYPE
     unsigned char *types = (unsigned char *) malloc(sizeof(unsigned char));
     if (types == NULL) {
         return -1;
     }
+#endif
     int i = 0;
     int size = 1;
     while ((ent = readdir(dir)) != NULL) {
@@ -213,7 +217,9 @@ int dir_read(dir_read_t *dir_read, char *dirname) {
         i++;
     }
     dir_read->names = names;
+#ifdef _DIRENT_HAVE_D_TYPE
     dir_read->types = types;
+#endif
     dir_read->size = i;
     if (closedir(dir))
         return -1;
@@ -230,10 +236,11 @@ void dir_read_clean(dir_read_t *dir_read) {
         if (dir_read->names != NULL) {
             free(dir_read->names);
         }
-
+#ifdef _DIRENT_HAVE_D_TYPE
         if (dir_read->types != NULL) {
             free(dir_read->types);
         }
+#endif
     }
 }
 
