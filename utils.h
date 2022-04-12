@@ -24,10 +24,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef struct {
+    char **names;
+    unsigned char *types;
+    int size;
+} dir_read_t;
 
 /**
  * Read a file
@@ -50,23 +58,21 @@ extern "C" {
  * @param filename file name to read
  * @return dynamic string holds file content
  */
-char* file_read(char* filename)
-{
-    FILE* file;
+char *file_read(char *filename) {
+    FILE *file;
     int ch;
-    if ((file = fopen(filename,"r")) == NULL)
+    if ((file = fopen(filename, "r")) == NULL)
         return NULL;
     if (fseek(file, 0L, SEEK_END))
         return NULL;
     long size = ftell(file);
     if (fseek(file, 0L, SEEK_SET))
         return NULL;
-    char* content = (char*) malloc((size + 1) * sizeof(char));
+    char *content = (char *) malloc((size + 1) * sizeof(char));
     if (content == NULL)
         return NULL;
     int i = 0;
-    while ((ch = getc(file)) != EOF)
-    {
+    while ((ch = getc(file)) != EOF) {
         content[i] = (char) ch;
         i++;
     }
@@ -97,13 +103,11 @@ char* file_read(char* filename)
  * @param length length of the content
  * @return 0 on success and non zero value on failure
  */
-int file_write(char* filename,char* content,int length)
-{
-    FILE* file;
-    if ((file = fopen(filename,"w")) == NULL)
+int file_write(char *filename, char *content, int length) {
+    FILE *file;
+    if ((file = fopen(filename, "w")) == NULL)
         return -1;
-    for (int i = 0; i < length; i++)
-    {
+    for (int i = 0; i < length; i++) {
         fprintf(file, "%c", content[i]);
     }
     if (fclose(file))
@@ -132,11 +136,9 @@ int file_write(char* filename,char* content,int length)
  * @param out a long type variable to store the size
  * @return 0 on success and non zero value on failure
  */
-int file_size(char* filename, long* out)
-{
-    FILE* file;
-    if ((file = fopen(filename,"r")) == NULL)
-    {
+int file_size(char *filename, long *out) {
+    FILE *file;
+    if ((file = fopen(filename, "r")) == NULL) {
         return -1;
     }
     if (fseek(file, 0L, SEEK_END))
@@ -145,6 +147,94 @@ int file_size(char* filename, long* out)
     if (fclose(file))
         return -1;
     return 0;
+}
+
+/**
+ * Read directory
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   dir_read_t dir;
+ *   dir_read(&dir,".");
+ *   for (int i = 0; i < dir.size; i++)
+ *   {
+ *     printf("%s: %u\n", dir.names[i], dir.types[i]);
+ *   }
+ *   dir_read_clean(&dir);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param dir_read pointer to dir_read_t
+ * @param dirname directory name
+ * @return 0 on success and non zero value on failure
+ */
+int dir_read(dir_read_t *dir_read, char *dirname) {
+    DIR *dir;
+    struct dirent *ent;
+
+    if ((dir = opendir(dirname)) == NULL) {
+        return -1;
+    }
+    char **names = (char **) malloc(sizeof(char *));
+    if (names == NULL) {
+        return -1;
+    }
+    unsigned char *types = (unsigned char *) malloc(sizeof(unsigned char));
+    if (types == NULL) {
+        return -1;
+    }
+    int i = 0;
+    int size = 1;
+    while ((ent = readdir(dir)) != NULL) {
+        names = (char **) realloc(names, size * sizeof(char *));
+        if (names == NULL) {
+            return -1;
+        }
+        names[i] = (char *) malloc((strlen(ent->d_name) + 1) * sizeof(char));
+        if (names[i] == NULL) {
+            return -1;
+        }
+        strncpy(names[i], ent->d_name, strlen(ent->d_name));
+#ifdef _DIRENT_HAVE_D_TYPE
+        types = (unsigned char*) realloc(types,size * sizeof(unsigned char));
+            if (types == NULL)
+            {
+                return -1;
+            }
+          types[i] = ent->d_type;
+#endif
+        size++;
+        i++;
+    }
+    dir_read->names = names;
+    dir_read->types = types;
+    dir_read->size = i;
+    if (closedir(dir))
+        return -1;
+    return 0;
+}
+
+/**
+ * function to free the memory after using dir_read
+ *
+ * @param dir_read pointer to dir_read
+ */
+void dir_read_clean(dir_read_t *dir_read) {
+    if (dir_read != NULL) {
+        if (dir_read->names != NULL) {
+            free(dir_read->names);
+        }
+
+        if (dir_read->types != NULL) {
+            free(dir_read->types);
+        }
+    }
 }
 
 #ifdef __cplusplus
