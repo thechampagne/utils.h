@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -249,6 +250,46 @@ void dir_read_clean(dir_read_t *dir_read) {
         }
 #endif
     }
+}
+
+/**
+ * String format like "sprintf" but it
+ * returns the formatted string and it's
+ * dynamically allocated
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   char* str = string_format("Hello %s", "World");
+ *   printf("%s\n", str);
+ *   free(str);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param format formatted string
+ * @return dynamic string
+ */
+char* string_format(char *format, ...)
+{
+  va_list arg;
+  int len;
+  va_start (arg, format);
+  
+  len = vsnprintf(0, 0, format, arg);
+  char* str = (char*) malloc((len + 1) * sizeof(char));
+  if (str == NULL)
+  {
+    return NULL;
+  }
+  va_start (arg, format);
+  vsnprintf(str, (len + 1), format, arg);
+  va_end (arg);
+  return str;
 }
 
 #ifdef __cplusplus
