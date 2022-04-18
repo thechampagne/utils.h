@@ -27,10 +27,60 @@
 #include <string.h>
 #include <dirent.h>
 #include <stdarg.h>
+#include <setjmp.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * try catch
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ * 
+ * void divide(int a, int b)
+ * {
+ *   if (a == 0 && b == 0)
+ *   {
+ *     throws(700, "zero divided by zero not permitted");
+ *   }
+ * 
+ *   if (b == 0)
+ *   {
+ *     throw(1);
+ *   }
+ *   
+ *   printf("%d\n", a / b);
+ * }
+ * 
+ * int main(void) {
+ * 
+ *   try {
+ * 
+ *     divide(0,0);
+ * 
+ *   } catches(700) {
+ * 
+ *     printf("Error: %s", errormessage);
+ * 
+ *   } catch {
+ * 
+ *     printf("Error: %s",errormessage);
+ * 
+ *   }
+ *   return 0;
+ * }
+ * * *
+ * 
+ */
+#define try if ((errorcode = setjmp(buf)) == 0)
+#define catch else
+#define catches(code) else if (errorcode == code)
+#define throw(code) strcpy(errormessage, strerror(code)); longjmp(buf,code)
+#define throws(code, message) strcpy(errormessage, message); longjmp(buf,code)
 
 typedef struct {
     char **names;
@@ -39,6 +89,10 @@ typedef struct {
 #endif
     int size;
 } dir_read_t;
+
+int errorcode = 0;
+char errormessage[256] = "success";
+jmp_buf buf;
 
 /**
  * Read a file
