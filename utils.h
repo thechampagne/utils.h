@@ -346,6 +346,88 @@ char* string_format(char *format, ...)
   return str;
 }
 
+/**
+ * Get the max number in array
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   int arr[] = {
+ *     25,
+ *     69,
+ *     34,
+ *     57,
+ *     11
+ *   };
+ *   int max = array_max(arr, sizeof(arr) / sizeof(arr[0]));
+ *   printf("Max number: %d", max);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param array array of integers
+ * @param length array size
+ * @return max number
+ */
+int array_max(int* array, size_t length)
+{
+  int max = array[0];
+
+  for(int i = 0; i < length; i++)
+  {
+    if (array[i] > max)
+    {
+      max = array[i];
+    }
+  }
+  return max;
+}
+
+/**
+ * Get the minimum number in array
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   int arr[] = {
+ *     25,
+ *     69,
+ *     34,
+ *     57,
+ *     11
+ *   };
+ *   int max = array_min(arr, sizeof(arr) / sizeof(arr[0]));
+ *   printf("Minimum number: %d", max);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param array array of integers
+ * @param length array size
+ * @return minimum number
+ */
+int array_min(int* array, size_t length)
+{
+  int min = array[0];
+
+  for(int i = 0; i < length; i++)
+  {
+    if (array[i] < min)
+    {
+      min = array[i];
+    }
+  }
+  return min;
+}
+
 #ifdef __cplusplus
 }
 #endif
