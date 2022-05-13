@@ -428,6 +428,88 @@ int array_min(int* array, size_t length)
   return min;
 }
 
+/**
+ * Split string to array of strings
+ * by delimiters string
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include <stdlib.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   char* str = "Collection of utility for C.";
+ *   int length;
+ *   
+ *   char** arr = string_split(str, " ", &length);
+ *   
+ *   for(int i = 0; i < length; i++)
+ *   {
+ *     printf("%s\n", arr[i]);
+ *   }
+ * 
+ *   for(int i = 0; i < length; i++)
+ *   {
+ *     free(arr[i]);
+ *   }
+ *   free(arr);
+ *   
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param s string to split
+ * @param delim delimiters string
+ * @param out array length 
+ * @return dynamic array of dynamic strings
+ */
+char** string_split(char* s, char* delim, int* out)
+{
+  char* str = (char*) malloc((strlen(s) + 1) * sizeof(char));
+  if (str == NULL)
+  {
+    return NULL;
+  }
+
+  strncpy(str, s, strlen(s));
+  
+  char** array = (char**) malloc(sizeof(char*));
+  if (array == NULL)
+  {
+    free(str);
+    return NULL;
+  }
+  char* token = strtok(str, delim);  
+  
+  int i = 0;
+  while (token != NULL)
+  {
+    if (i != 0)
+    {
+      array = (char**) realloc(array, (i + 1) * sizeof(char*));
+      if (array == NULL)
+      {
+        free(str);
+        return NULL;
+      }
+    }
+    array[i] = (char*) malloc((strlen(token) + 1) * sizeof(char));
+    if (array[i] == NULL)
+    {
+      free(str);
+      return NULL;
+    }
+    strncpy(array[i], token, strlen(token));
+    token = strtok (NULL, delim);
+    i++;
+  }
+  *out = i;
+  free(str);
+  return array;
+}
+
 #ifdef __cplusplus
 }
 #endif
