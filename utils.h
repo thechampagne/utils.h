@@ -510,6 +510,96 @@ char** string_split(char* s, char* delim, int* out)
   return array;
 }
 
+/**
+ * Repeat string with specified count
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include <stdlib.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   char* str = string_repeat("Hello World ", 3);
+ *   printf("%s", str);
+ *   free(str);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param s string to repeat
+ * @param count number to repeat
+ * @return dynamic string
+ */
+char* string_repeat(char* s, int count)
+{
+  if (count <= 0)
+  {
+    return s;
+  }
+  char* str = (char*) malloc((strlen(s) * count) + 1 * sizeof(char));
+  if (str == NULL)
+  {
+    return NULL;
+  }
+  for (int i = 0; i < count; i++)
+  {
+    strcat(str, s);
+  }
+  return str;
+}
+
+/**
+ * Array to string with specified separator
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include <stdlib.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   char* arr[] = {"Hello", "Hola", "Bonjour"};
+ *   char* str = string_join(arr, ", ", sizeof(arr) / sizeof(arr[0]));
+ *   printf("%s", str);
+ *   free(str);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param arr array to separate
+ * @param sep separator string
+ * @param length array length
+ * @return dynamic string
+ */
+char* string_join(char** arr, char* sep, size_t length)
+{
+  char* str = (char*) malloc(sizeof(char));
+  if (str == NULL)
+  {
+    return NULL;
+  }
+  for (int i = 0; i < length; i++)
+  {
+    if (i != 0)
+    {
+      str = (char*) realloc(str ,(strlen(arr[i]) + strlen(sep)) * sizeof(char));
+      if (str == NULL)
+      {
+        return NULL;
+      }
+    }
+    strcat(str, arr[i]);
+    if ((i + 1 < length))
+    {
+      strcat(str, sep);
+    }
+  }
+  return str;
+}
+
 #ifdef __cplusplus
 }
 #endif
