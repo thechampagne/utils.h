@@ -28,6 +28,7 @@
 #include <dirent.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -598,6 +599,60 @@ char* string_join(char** arr, char* sep, size_t length)
     }
   }
   return str;
+}
+
+/**
+ * Generate random number between range
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   int rand = random_int(1,10);
+ *   printf("%d", rand);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param min minimum number
+ * @param max maximum number
+ * @return random number
+ */
+int random_int(int min, int max)
+{
+  srand((unsigned int)time(NULL));
+  return ((rand() % ((max) - (min) + 1)) + (min));
+}
+
+/**
+ * Random character from the given string
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include <string.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   char* str = "Hello World";
+ *   char rand = random_char(str, strlen(str));
+ *   printf("%c", rand);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param str string
+ * @param str_length string length
+ * @return random character
+ */
+char random_char(char* str, size_t str_length)
+{
+  srand((unsigned int)time(NULL));
+  return str[rand() % str_length];
 }
 
 #ifdef __cplusplus
