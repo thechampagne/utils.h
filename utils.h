@@ -655,6 +655,63 @@ char random_char(char* str, size_t str_length)
   return str[rand() % str_length];
 }
 
+/**
+ * Check if string starts with the specified prefix
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   char* str = "Hello World";
+ *   int starts = string_starts_with(str, "Hello");
+ *   printf("%d", starts);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param str the string
+ * @param prefix the prefix
+ * @return 1 if the character sequence represented by the argument 
+ * is a prefix of the character sequence represented by the string;
+ * 0 otherwise
+ */
+int string_starts_with(char* str, char* prefix)
+{
+  return memcmp(prefix, str, strlen(prefix)) == 0;
+}
+
+/**
+ * Check if string ends with the specified suffix
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ * 
+ * int main() 
+ * {
+ *   char* str = "Hello World";
+ *   int ends = string_ends_with(str, "World");
+ *   printf("%d", ends);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param str the string
+ * @param suffix the suffix
+ * @return 1 if the character sequence represented by the argument
+ * is a suffix of the character sequence represented by the string;
+ * 0 otherwise
+ */
+int string_ends_with(char* str, char* suffix)
+{
+  int suffix_len = strlen(suffix);
+  return memcmp(str + strlen(str) - suffix_len, suffix, suffix_len) == 0;
+}
+
 #ifdef __cplusplus
 }
 #endif
