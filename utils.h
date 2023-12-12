@@ -22,66 +22,52 @@
 #ifndef __C_UTILS_H__
 #define __C_UTILS_H__
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <pthread.h>
 #include <dirent.h>
 #include <stdarg.h>
 #include <setjmp.h>
 #include <time.h>
+#include <sched.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
- * try catch
- *
- * Example:
- * * *
- * #include <stdio.h>
- * #include "utils.h"
- * 
- * void divide(int a, int b)
- * {
- *   if (a == 0 && b == 0)
- *   {
- *     throws(700, "zero divided by zero not permitted");
- *   }
- * 
- *   if (b == 0)
- *   {
- *     throw(1);
- *   }
- *   
- *   printf("%d\n", a / b);
- * }
- * 
- * int main(void) {
- * 
- *   try {
- * 
- *     divide(0,0);
- * 
- *   } catches(700) {
- * 
- *     printf("Error: %s", errormessage);
- * 
- *   } catch {
- * 
- *     printf("Error: %s",errormessage);
- * 
- *   }
- *   return 0;
- * }
- * * *
- * 
- */
-#define try if ((errorcode = setjmp(buf)) == 0)
-#define catch else
-#define catches(code) else if (errorcode == code)
-#define throw(code) strcpy(errormessage, strerror(code)); longjmp(buf,code)
-#define throws(code, message) strcpy(errormessage, message); longjmp(buf,code)
+#ifndef likely
+#define likely(x)           __builtin_expect(!!(x), 1)
+#define unlikely(x)         __builtin_expect(!!(x), 0)
+#endif  /* likely */
+
+#ifndef swap16
+#define swap16(n)           __builtin_bswap16(n)
+#endif
+#ifndef swap32
+#define swap32(n)           __builtin_bswap32(n)
+#endif
+#ifndef swap64
+#define swap64(n)           __builtin_bswap64(n)
+#endif
+#ifndef swap128
+#define swap128(n)          __builtin_bswap128(n)
+#endif
+
+#ifndef CACHE_LINE_SIZE
+#define CACHE_LINE_SIZE     64
+#endif  /* CACHE_LINE_SIZE */
+
+#define MAX_LINE_SIZE       1024
+#define MAX_NAME_SIZE       64
 
 typedef struct {
     char **names;
@@ -91,9 +77,6 @@ typedef struct {
     int size;
 } dir_read_t;
 
-int errorcode = 0;
-char errormessage[256] = "success";
-jmp_buf buf;
 
 /**
  * Read a file
@@ -116,6 +99,7 @@ jmp_buf buf;
  * @param filename file name to read
  * @return dynamic string holds file content
  */
+static inline
 char *file_read(char *filename) {
     FILE *file;
     int ch;
@@ -126,7 +110,7 @@ char *file_read(char *filename) {
     long size = ftell(file);
     if (fseek(file, 0L, SEEK_SET))
         return NULL;
-    char *content = (char *) malloc((size + 1) * sizeof(char));
+    char *content = (char *) malloc((size + 2) * sizeof(char));
     if (content == NULL)
         return NULL;
     int i = 0;
@@ -134,6 +118,7 @@ char *file_read(char *filename) {
         content[i] = (char) ch;
         i++;
     }
+    content[i] = '\0';
     if (fclose(file))
         return NULL;
     return content;
@@ -161,11 +146,13 @@ char *file_read(char *filename) {
  * @param length length of the content
  * @return 0 on success and non zero value on failure
  */
+static inline
 int file_write(char *filename, char *content, int length) {
+    int i;
     FILE *file;
     if ((file = fopen(filename, "w")) == NULL)
         return -1;
-    for (int i = 0; i < length; i++) {
+    for (i = 0; i < length; i++) {
         fprintf(file, "%c", content[i]);
     }
     if (fclose(file))
@@ -194,6 +181,7 @@ int file_write(char *filename, char *content, int length) {
  * @param out a long type variable to store the size
  * @return 0 on success and non zero value on failure
  */
+static inline
 int file_size(char *filename, long *out) {
     FILE *file;
     if ((file = fopen(filename, "r")) == NULL) {
@@ -214,8 +202,8 @@ int file_size(char *filename, long *out) {
  * * *
  * #include <stdio.h>
  * #include "utils.h"
- * 
- * int main() 
+ *
+ * int main()
  * {
  *   dir_read_t dir;
  *   dir_read(&dir,".");
@@ -232,6 +220,7 @@ int file_size(char *filename, long *out) {
  * @param dirname directory name
  * @return 0 on success and non zero value on failure
  */
+static inline
 int dir_read(dir_read_t *dir_read, char *dirname) {
     DIR *dir;
     struct dirent *ent;
@@ -287,10 +276,12 @@ int dir_read(dir_read_t *dir_read, char *dirname) {
  *
  * @param dir_read pointer to dir_read
  */
+static inline
 void dir_read_clean(dir_read_t *dir_read) {
+    int i;
     if (dir_read != NULL) {
         if (dir_read->names != NULL) {
-            for (int i = 0; i < dir_read->size; i++)
+            for (i = 0; i < dir_read->size; i++)
             {
                 if (dir_read->names[i] != NULL)
                 {
@@ -316,8 +307,8 @@ void dir_read_clean(dir_read_t *dir_read) {
  * * *
  * #include <stdio.h>
  * #include "utils.h"
- * 
- * int main() 
+ *
+ * int main()
  * {
  *   char* str = string_format("Hello %s", "World");
  *   printf("%s\n", str);
@@ -329,12 +320,13 @@ void dir_read_clean(dir_read_t *dir_read) {
  * @param format formatted string
  * @return dynamic string
  */
+static inline
 char* string_format(char *format, ...)
 {
   va_list arg;
   int len;
   va_start (arg, format);
-  
+
   len = vsnprintf(0, 0, format, arg);
   char* str = (char*) malloc((len + 1) * sizeof(char));
   if (str == NULL)
@@ -348,88 +340,6 @@ char* string_format(char *format, ...)
 }
 
 /**
- * Get the max number in array
- *
- * Example:
- * * *
- * #include <stdio.h>
- * #include "utils.h"
- * 
- * int main() 
- * {
- *   int arr[] = {
- *     25,
- *     69,
- *     34,
- *     57,
- *     11
- *   };
- *   int max = array_max(arr, sizeof(arr) / sizeof(arr[0]));
- *   printf("Max number: %d", max);
- *   return 0;
- * }
- * * *
- *
- * @param array array of integers
- * @param length array size
- * @return max number
- */
-int array_max(int* array, size_t length)
-{
-  int max = array[0];
-
-  for(int i = 0; i < length; i++)
-  {
-    if (array[i] > max)
-    {
-      max = array[i];
-    }
-  }
-  return max;
-}
-
-/**
- * Get the minimum number in array
- *
- * Example:
- * * *
- * #include <stdio.h>
- * #include "utils.h"
- * 
- * int main() 
- * {
- *   int arr[] = {
- *     25,
- *     69,
- *     34,
- *     57,
- *     11
- *   };
- *   int max = array_min(arr, sizeof(arr) / sizeof(arr[0]));
- *   printf("Minimum number: %d", max);
- *   return 0;
- * }
- * * *
- *
- * @param array array of integers
- * @param length array size
- * @return minimum number
- */
-int array_min(int* array, size_t length)
-{
-  int min = array[0];
-
-  for(int i = 0; i < length; i++)
-  {
-    if (array[i] < min)
-    {
-      min = array[i];
-    }
-  }
-  return min;
-}
-
-/**
  * Split string to array of strings
  * by delimiters string
  *
@@ -438,34 +348,35 @@ int array_min(int* array, size_t length)
  * #include <stdio.h>
  * #include <stdlib.h>
  * #include "utils.h"
- * 
- * int main() 
+ *
+ * int main()
  * {
  *   char* str = "Collection of utility for C.";
  *   int length;
- *   
+ *
  *   char** arr = string_split(str, " ", &length);
- *   
+ *
  *   for(int i = 0; i < length; i++)
  *   {
  *     printf("%s\n", arr[i]);
  *   }
- * 
+ *
  *   for(int i = 0; i < length; i++)
  *   {
  *     free(arr[i]);
  *   }
  *   free(arr);
- *   
+ *
  *   return 0;
  * }
  * * *
  *
  * @param s string to split
  * @param delim delimiters string
- * @param out array length 
+ * @param out array length
  * @return dynamic array of dynamic strings
  */
+static inline
 char** string_split(char* s, char* delim, int* out)
 {
   char* str = (char*) malloc((strlen(s) + 1) * sizeof(char));
@@ -475,15 +386,15 @@ char** string_split(char* s, char* delim, int* out)
   }
 
   strncpy(str, s, strlen(s));
-  
+
   char** array = (char**) malloc(sizeof(char*));
   if (array == NULL)
   {
     free(str);
     return NULL;
   }
-  char* token = strtok(str, delim);  
-  
+  char* token = strtok(str, delim);
+
   int i = 0;
   while (token != NULL)
   {
@@ -519,8 +430,8 @@ char** string_split(char* s, char* delim, int* out)
  * #include <stdio.h>
  * #include <stdlib.h>
  * #include "utils.h"
- * 
- * int main() 
+ *
+ * int main()
  * {
  *   char* str = string_repeat("Hello World ", 3);
  *   printf("%s", str);
@@ -533,8 +444,10 @@ char** string_split(char* s, char* delim, int* out)
  * @param count number to repeat
  * @return dynamic string
  */
+static inline
 char* string_repeat(char* s, int count)
 {
+  int i;
   if (count <= 0)
   {
     return s;
@@ -544,7 +457,7 @@ char* string_repeat(char* s, int count)
   {
     return NULL;
   }
-  for (int i = 0; i < count; i++)
+  for (i = 0; i < count; i++)
   {
     strcat(str, s);
   }
@@ -559,8 +472,8 @@ char* string_repeat(char* s, int count)
  * #include <stdio.h>
  * #include <stdlib.h>
  * #include "utils.h"
- * 
- * int main() 
+ *
+ * int main()
  * {
  *   char* arr[] = {"Hello", "Hola", "Bonjour"};
  *   char* str = string_join(arr, ", ", sizeof(arr) / sizeof(arr[0]));
@@ -575,14 +488,16 @@ char* string_repeat(char* s, int count)
  * @param length array length
  * @return dynamic string
  */
+static inline
 char* string_join(char** arr, char* sep, size_t length)
 {
+  int i;
   char* str = (char*) malloc(sizeof(char));
   if (str == NULL)
   {
     return NULL;
   }
-  for (int i = 0; i < length; i++)
+  for (i = 0; i < length; i++)
   {
     if (i != 0)
     {
@@ -602,68 +517,14 @@ char* string_join(char** arr, char* sep, size_t length)
 }
 
 /**
- * Generate random number between range
- *
- * Example:
- * * *
- * #include <stdio.h>
- * #include "utils.h"
- * 
- * int main() 
- * {
- *   int rand = random_int(1,10);
- *   printf("%d", rand);
- *   return 0;
- * }
- * * *
- *
- * @param min minimum number
- * @param max maximum number
- * @return random number
- */
-int random_int(int min, int max)
-{
-  srand((unsigned int)time(NULL));
-  return ((rand() % ((max) - (min) + 1)) + (min));
-}
-
-/**
- * Random character from the given string
- *
- * Example:
- * * *
- * #include <stdio.h>
- * #include <string.h>
- * #include "utils.h"
- * 
- * int main() 
- * {
- *   char* str = "Hello World";
- *   char rand = random_char(str, strlen(str));
- *   printf("%c", rand);
- *   return 0;
- * }
- * * *
- *
- * @param str string
- * @param str_length string length
- * @return random character
- */
-char random_char(char* str, size_t str_length)
-{
-  srand((unsigned int)time(NULL));
-  return str[rand() % str_length];
-}
-
-/**
  * Check if string starts with the specified prefix
  *
  * Example:
  * * *
  * #include <stdio.h>
  * #include "utils.h"
- * 
- * int main() 
+ *
+ * int main()
  * {
  *   char* str = "Hello World";
  *   int starts = string_starts_with(str, "Hello");
@@ -674,10 +535,11 @@ char random_char(char* str, size_t str_length)
  *
  * @param str the string
  * @param prefix the prefix
- * @return 1 if the character sequence represented by the argument 
+ * @return 1 if the character sequence represented by the argument
  * is a prefix of the character sequence represented by the string;
  * 0 otherwise
  */
+static inline
 int string_starts_with(char* str, char* prefix)
 {
   return memcmp(prefix, str, strlen(prefix)) == 0;
@@ -690,8 +552,8 @@ int string_starts_with(char* str, char* prefix)
  * * *
  * #include <stdio.h>
  * #include "utils.h"
- * 
- * int main() 
+ *
+ * int main()
  * {
  *   char* str = "Hello World";
  *   int ends = string_ends_with(str, "World");
@@ -706,10 +568,231 @@ int string_starts_with(char* str, char* prefix)
  * is a suffix of the character sequence represented by the string;
  * 0 otherwise
  */
+static inline
 int string_ends_with(char* str, char* suffix)
 {
   int suffix_len = strlen(suffix);
   return memcmp(str + strlen(str) - suffix_len, suffix, suffix_len) == 0;
+}
+
+/**
+ * Get the max number in array
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ *
+ * int main()
+ * {
+ *   int arr[] = {
+ *     25,
+ *     69,
+ *     34,
+ *     57,
+ *     11
+ *   };
+ *   int max = array_max(arr, sizeof(arr) / sizeof(arr[0]));
+ *   printf("Max number: %d", max);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param array array of integers
+ * @param length array size
+ * @return max number
+ */
+static inline
+int array_max(int* array, size_t length)
+{
+  int i, max = array[0];
+
+  for(i = 0; i < length; i++)
+  {
+    if (array[i] > max)
+    {
+      max = array[i];
+    }
+  }
+  return max;
+}
+
+/**
+ * Get the minimum number in array
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ *
+ * int main()
+ * {
+ *   int arr[] = {
+ *     25,
+ *     69,
+ *     34,
+ *     57,
+ *     11
+ *   };
+ *   int max = array_min(arr, sizeof(arr) / sizeof(arr[0]));
+ *   printf("Minimum number: %d", max);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param array array of integers
+ * @param length array size
+ * @return minimum number
+ */
+static inline
+int array_min(int* array, size_t length)
+{
+  int i, min = array[0];
+
+  for(i = 0; i < length; i++)
+  {
+    if (array[i] < min)
+    {
+      min = array[i];
+    }
+  }
+  return min;
+}
+
+/**
+ * Generate random number between range
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include "utils.h"
+ *
+ * int main()
+ * {
+ *   int rand = random_int(1,10);
+ *   printf("%d", rand);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param min minimum number
+ * @param max maximum number
+ * @return random number
+ */
+static inline
+int random_int(int min, int max)
+{
+  srand((unsigned int)time(NULL));
+  return ((rand() % ((max) - (min) + 1)) + (min));
+}
+
+/**
+ * Random character from the given string
+ *
+ * Example:
+ * * *
+ * #include <stdio.h>
+ * #include <string.h>
+ * #include "utils.h"
+ *
+ * int main()
+ * {
+ *   char* str = "Hello World";
+ *   char rand = random_char(str, strlen(str));
+ *   printf("%c", rand);
+ *   return 0;
+ * }
+ * * *
+ *
+ * @param str string
+ * @param str_length string length
+ * @return random character
+ */
+static inline
+char random_char(char* str, size_t str_length)
+{
+  srand((unsigned int)time(NULL));
+  return str[rand() % str_length];
+}
+
+/**
+ * @description: 将进程变为后台进程
+ * @return {*}
+ */
+static inline
+bool daemonize(void)
+{
+    pid_t pid = fork();
+    if (pid == -1) {
+        return false;
+    } else if (pid != 0) {
+        exit(EXIT_SUCCESS);
+    }
+
+    /* Child process survives */
+    pid  = fork();
+    if (pid == -1) {
+        return false;
+    } else if (pid != 0) {
+        exit(EXIT_SUCCESS);
+    }
+
+    /* Again, child process survives */
+    if (chdir("/") == -1) {
+        return false;
+    }
+
+    return true;
+}
+
+static inline
+int pthread_setaffinity(pthread_t tid, const int cpuid)
+{
+    cpu_set_t cpuset;
+    cpu_set_t cpuget;
+    int ret = EXIT_SUCCESS;
+
+    CPU_ZERO(&cpuset);
+    CPU_ZERO(&cpuget);
+    CPU_SET(cpuid, &cpuset);
+
+    ret = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
+    if (ret) {
+        return EXIT_FAILURE;
+    }
+
+    /* Chcek */
+    ret = pthread_getaffinity_np(tid, sizeof(cpu_set_t), &cpuget);
+    if (ret) {
+        return EXIT_FAILURE;
+    }
+    if (memcmp(&cpuset, &cpuget, sizeof(cpu_set_t))) {
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+static inline
+uint32_t ip_pton(const char *ip)
+{
+    struct in_addr s;
+
+    if (unlikely(!ip)) {
+        return 0;
+    }
+
+    memset(&s, 0x00,sizeof(s));
+
+    return __bswap_32(inet_pton(AF_INET, ip, &s));
+}
+
+static inline
+const char *ip_ntop(uint32_t ipaddr)
+{
+    uint32_t number = ipaddr;
+    static char buf[16];
+    return inet_ntop(AF_INET, &number, buf, 16);
 }
 
 #ifdef __cplusplus
